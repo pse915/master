@@ -73,22 +73,40 @@ def read_roster(tables):
         teachers.append(dict(id=tid,name=name,subjects=subs,crossSubjects=cross,homeroom=home,roleEligibility=roles,rosterRow=i))
     return dict(teachers=teachers,errors=errors,columns={k:v+1 for k,v in cols.items() if k in HEADERS[SH['roster']]})
 
+def grade_class(grade,clazz,raw='',location='학급'):
+    """Read numeric columns or an explicit grade-class pair without sheet writes."""
+    def pair(value):
+        text=clean(value)
+        m=re.fullmatch(r'(\d+)\s*[-–_/]\s*(\d+)',text)
+        return tuple(map(int,m.groups())) if m else None
+    gp,cp,rp=pair(grade),pair(clazz),pair(class_id(raw))
+    pairs=[v for v in (gp,cp,rp) if v]
+    require(not clean(raw) or rp is not None,location+' 학급 형식 오류: '+clean(raw))
+    if pairs:
+        g,c=pairs[0]
+        require(all(v==(g,c) for v in pairs),location+' 학년·반·학급값 불일치')
+        if clean(grade) and not gp:require(integer(grade,location+' 학년')==g,location+' 학년·학급값 불일치')
+        if clean(clazz) and not cp:require(integer(clazz,location+' 반')==c,location+' 반·학급값 불일치')
+    else:g,c=integer(grade,location+' 학년'),integer(clazz,location+' 반')
+    require(g>0 and c>0,location+' 학년·반 오류')
+    return g,c
+
 def read_classes(tables):
     rows=tables.get(SH['classes'],[])
     if not rows:return []
     cols=column_map(rows[0]);require(cols['학년']>=0 and cols['반']>=0,'학년·반 열 누락');out=[];seen=set()
-    for row in rows[1:]:
+    for rowno,row in enumerate(rows[1:],2):
         g,c=cell(row,cols['학년']),cell(row,cols['반'])
         if not clean(g) and not clean(c):continue
-        g,c=integer(g,'학년'),integer(c,'반');require(g>0 and c>0,'학년·반 오류');cid=f'{g}-{c}';require(cid not in seen,'중복 학급: '+cid);seen.add(cid);out.append(dict(grade=g,classNo=c,id=cid))
+        g,c=grade_class(g,c,location=f"{SH['classes']} {rowno}행");cid=f'{g}-{c}';require(cid not in seen,'중복 학급: '+cid);seen.add(cid);out.append(dict(grade=g,classNo=c,id=cid))
     return sorted(out,key=lambda r:(r['grade'],r['classNo']))
 
 def read_schedule(tables):
     out=[]
-    for row in tables.get(SH['schedule'],[])[1:]:
+    for rowno,row in enumerate(tables.get(SH['schedule'],[])[1:],2):
         if not clean(cell(row,0)):continue
-        g,c=integer(cell(row,3)),integer(cell(row,4));cid=f'{g}-{c}';require(g>0 and c>0,'시험일정 학년·반 오류');raw=clean(cell(row,5));require(not raw or class_id(raw)==cid,'시험일정 학급값 불일치: '+raw+' / '+cid)
-        out.append(dict(day=integer(cell(row,0)),date=date_text(cell(row,1)),period=integer(cell(row,2)),grade=g,classNo=c,classId=cid,type=clean(cell(row,6)),subject=clean(cell(row,7)),start=clock_text(cell(row,8)),end=clock_text(cell(row,9))))
+        location=f"{SH['schedule']} {rowno}행";g,c=grade_class(cell(row,3),cell(row,4),cell(row,5),location);cid=f'{g}-{c}'
+        out.append(dict(day=integer(cell(row,0),location+' 일차'),date=date_text(cell(row,1)),period=integer(cell(row,2),location+' 교시'),grade=g,classNo=c,classId=cid,type=clean(cell(row,6)),subject=clean(cell(row,7)),start=clock_text(cell(row,8)),end=clock_text(cell(row,9))))
     return out
 
 def read_draft(tables,schedule):
