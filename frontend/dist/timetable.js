@@ -19167,7 +19167,7 @@ function Pm({ data: e, transport: t, onReady: n }) {
 		"slider",
 		"date_input",
 		"editor"
-	], x = () => Object.fromEntries(y.filter((e) => b.includes(e.kind) && !e.disabled && e.id in h).map((e) => [e.id, h[e.id]])), S = async (n, r) => {
+	], x = () => Object.fromEntries(y.filter((e) => b.includes(e.kind) && e.disabled !== true && e.id in h).map((e) => [e.id, h[e.id]])), S = async (n, r) => {
 		if (s.current && !n.endsWith("chunk")) return o("이전 작업이 처리 중입니다."), {
 			operation: n,
 			requestId: "",

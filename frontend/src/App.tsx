@@ -25,7 +25,7 @@ export function App({data,transport,onReady}:{data:Snapshot;transport:Send;onRea
   const examMeta=nodes.find(n=>n.kind==='exam_meta');
   const hasUnsavedExam=nodes.some(n=>n.id in drafts && (n.id.startsWith('exam_')||n.id.startsWith('exam_grid_')) && JSON.stringify(drafts[n.id])!==JSON.stringify(n.kind==='editor'?n.table?.rows:n.value));
   const fieldKinds=['text_input','text_area','selectbox','radio','checkbox','slider','date_input','editor'];
-  const values=()=>Object.fromEntries(nodes.filter(n=>fieldKinds.includes(n.kind)&&!n.disabled&&n.id in drafts).map(n=>[n.id,drafts[n.id]]));
+  const values=()=>Object.fromEntries(nodes.filter(n=>fieldKinds.includes(n.kind)&&n.disabled!==true&&n.id in drafts).map(n=>[n.id,drafts[n.id]]));
   const send:Send=async(operation,payload)=>{
     if(pendingOperation.current && !operation.endsWith('chunk')){
       setError('이전 작업이 처리 중입니다.');
