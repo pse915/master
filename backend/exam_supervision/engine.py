@@ -68,8 +68,10 @@ def validate_schedule(rows,classes):
         require(gt not in days or days[gt]==r['day'],'같은 학년·날짜의 일차가 다릅니다.');dates[gd]=r['date'];days[gt]=r['day']
         for k in ('start','end'):require(not r.get(k) or re.fullmatch(r'([01]\d|2[0-3]):[0-5]\d',r[k]),'시각 형식 오류')
         require(not(r.get('start') and r.get('end')) or r['start']<r['end'],'종료시각은 시작 이후여야 합니다.')
-    # Deliberately retain the source's combined grade/day limit; documented.
-    require(len(dates)<=5,'시험기간 5일 제한 (원본 학년·일차 조합 기준)')
+    # Each grade may operate independently for up to five days, as the
+    # original grade-based editor supports. Counting (grade, day) pairs
+    # across grades incorrectly rejected three grades with separate days.
+    require(all(1 <= day <= 5 for _, day in dates), '학년별 시험기간은 최대 5일입니다.')
 
 def grade_plan(rows,classes,supplied=None):
     grades=sorted({c['grade'] for c in classes})

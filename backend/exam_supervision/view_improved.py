@@ -108,68 +108,8 @@ def page_all(p,s,m):
     export(p,rows,'전체_감독시간표')
 
 def page_schedule(p,s,m,writable):
-    screen_header(p,'1. 시험일정','학급 설정 → 날짜·교시·과목 등록 → 시간표 확인 순서입니다.')
-    current=[{'grade':c['grade'],'classNo':c['classNo']} for c in m['classes']]
-    with p.expander('학년별 반 수 일괄 설정 · 변경 미리보기'):
-        grades=sorted({c['grade'] for c in m['classes']}) or [1,2,3]
-        counts={g:p.slider(f'{g}학년 반 수',0,20,len([c for c in m['classes'] if c['grade']==g]),key='exam_grade_count_'+str(g)) for g in grades}
-        proposed=[dict(grade=g,classNo=n) for g,c in counts.items() for n in range(1,c+1)]
-        old={(r['grade'],r['classNo']) for r in current};new={(r['grade'],r['classNo']) for r in proposed}
-        removed=sorted(old-new);added=sorted(new-old)
-        p.info(f'추가될 학급 {len(added)}개 · 제외될 학급 {len(removed)}개 · 기존 유지 {len(old & new)}개')
-        display(p,[dict(학년=g,반=n) for g,n in proposed])
-        if removed:p.warning('제외 예상: '+', '.join(f'{g}-{n}' for g,n in removed)+' · 해당 학급의 기존 일정은 별도 확인이 필요합니다.')
-        accept=p.checkbox('영향을 확인했습니다. 기존 자료는 자동 삭제하지 않습니다.',key='exam_bulk_classes_ack') if removed else True
-        if p.button('미리보기 학급 적용·저장',disabled=not writable or not accept or bool(removed),key='exam_bulk_classes_save'):
-            run(p,s,'saveClasses',dict(rows=proposed))
-        if removed:p.caption('기존 학급 제거는 자동 일괄 적용할 수 없습니다. 아래 개별 편집 표에서 일정 영향 검토 후 처리하세요.')
-    screen_header(p,'학급 개별 편집','불연속 반 번호도 직접 입력할 수 있습니다. 기존 학급 삭제는 저장 전 영향을 확인하세요.')
-    classes=grid(p,'classes',current,['grade','classNo'],{'grade':p.column_config.NumberColumn('학년',min_value=1,max_value=12,step=1),'classNo':p.column_config.NumberColumn('반',min_value=1,max_value=30,step=1)})
-    if p.button('학급 설정 저장',key='exam_save_classes',disabled=not writable):run(p,s,'saveClasses',dict(rows=classes))
-    screen_header(p,'시험 날짜·교시 설정','일차 1~5, 교시 1~5. 시험·자습은 행으로 등록하며 미운영 교시는 등록하지 않습니다.')
-    fields=['day','date','period','classId','type','subject','start','end']
-    rows=grid(p,'schedule',m['schedule'],fields,{'type':p.column_config.SelectboxColumn('구분',options=['EXAM','STUDY']), 'date':p.column_config.DateColumn('날짜'), 'day':p.column_config.NumberColumn('일차',min_value=1,max_value=5,step=1),'period':p.column_config.NumberColumn('교시',min_value=1,max_value=5,step=1)})
-    if p.button('시험일정 저장',key='exam_save_schedule',disabled=not writable):run(p,s,'saveSchedule',dict(rows=rows))
-    with p.expander('같은 학년·교시 일괄 적용 · 변경 미리보기'):
-        grades=sorted({c['grade'] for c in m['classes']});grade=p.selectbox('대상 학년',grades,key='exam_bulk_grade')
-        days=sorted({r['day'] for r in rows});day=p.selectbox('대상 일차',days or [1,2,3,4,5],key='exam_bulk_day')
-        period=p.selectbox('대상 교시',[1,2,3,4,5],key='exam_bulk_period')
-        exam_type=p.selectbox('일괄 적용 구분',['EXAM','STUDY'],format_func=lambda x:'시험' if x=='EXAM' else '자습',key='exam_bulk_type')
-        subject=p.text_input('일괄 과목 (시험일 때 필수)',key='exam_bulk_subject')
-        by_id={c['id']:c for c in m['classes']};target=[r for r in rows if r.get('day')==day and r.get('period')==period and by_id.get(r.get('classId'),{}).get('grade')==grade]
-        p.info(f'대상 {len(target)}행 · 대상 학년 {grade} · {day}일차 {period}교시')
-        display(p,[dict(학급=r['classId'],변경전=r['type']+' '+str(r.get('subject','')),변경후=exam_type+' '+(subject if exam_type=='EXAM' else '')) for r in target])
-        apply=p.checkbox('위 변경 대상과 변경 전·후 내용을 확인했습니다',key='exam_bulk_schedule_ack')
-        if p.button('변경 내용을 시험일정에 저장',key='exam_bulk_schedule_save',disabled=not writable or not apply or not target):
-            updated=copy.deepcopy(rows)
-            for r in updated:
-                if r.get('day')==day and r.get('period')==period and by_id.get(r.get('classId'),{}).get('grade')==grade:
-                    r.update(type=exam_type,subject=subject if exam_type=='EXAM' else '')
-            run(p,s,'saveSchedule',dict(rows=updated))
-    with p.expander('일정 복사 · 변경 전후 미리보기'):
-        source_days=sorted({r['day'] for r in rows})
-        if source_days:
-            origin=p.selectbox('복사할 일차',source_days,key='exam_copy_source')
-            destination=p.selectbox('복사할 대상 일차',[1,2,3,4,5],key='exam_copy_target')
-            new_date=p.text_input('대상 날짜 (YYYY-MM-DD)',key='exam_copy_date')
-            source=[r for r in rows if r['day']==origin]
-            proposed=[{**r,'day':destination,'date':new_date} for r in source]
-            existing={(r['date'],r['period'],r['classId']) for r in rows}
-            conflict=[r for r in proposed if (r['date'],r['period'],r['classId']) in existing]
-            p.info(f'복사 대상 {len(source)}행 · 중복 감독 시간 {len(conflict)}개')
-            display(p,[dict(학급=r['classId'],교시=r['period'],기존날짜=r['date'],신규날짜=new_date) for r in source])
-            ack=p.checkbox('복사 대상·기존 일정과의 충돌을 확인했습니다',key='exam_copy_confirm')
-            if conflict:p.warning('대상 날짜·교시에 기존 일정이 있습니다. 중복 없이 변경하세요.')
-            if p.button('일정 복사 적용·저장',key='exam_copy_save',disabled=not writable or not ack or bool(conflict) or not E.valid_date(new_date) or origin==destination):
-                run(p,s,'saveSchedule',dict(rows=rows+proposed))
-        else:p.info('복사할 시험일정을 먼저 입력하세요.')
-    with p.expander('고급 도구 · 학년별 운영 원본 JSON'):
-        text=p.text_area('학년별 운영 JSON',value=json.dumps(m['gradePlan'],ensure_ascii=False,indent=2),key='exam_grade_plan')
-        if p.button('일정·학년별 설정 함께 저장',key='exam_save_grade_plan',disabled=not writable):
-            try:run(p,s,'saveSchedule',dict(rows=rows,gradePlan=json.loads(text)))
-            except ValueError as exc:p.error(str(exc))
-    with p.expander('일정 결과 표 · 내려받기'):
-        display(p,m['schedule']);export(p,rows,'시험일정',fields)
+    from .schedule_view import render_schedule
+    return render_schedule(p,s,m,writable)
 
 def roster_rows(m):
     return [dict(originalId=t['id'],id=t['id'],name=t['name'],subjectsText=', '.join(t['subjects']),

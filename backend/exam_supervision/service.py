@@ -161,7 +161,14 @@ class Service:
         if action=='saveClasses':
             found=set();values=[]
             for r in rows:
-                g,c=E.integer(r['grade']),E.integer(r['classNo']);E.require(1<=g<=3 and 1<=c<=100 and (g,c) not in found,'학년 1~3·반 1~100 또는 중복 오류');found.add((g,c));values.append([g,c])
+                g,c=E.integer(r['grade']),E.integer(r['classNo']);E.require(1<=g<=12 and 1<=c<=100 and (g,c) not in found,'학년 1~12·반 1~100 또는 중복 오류');found.add((g,c));values.append([g,c])
+            from .schedule_editor import class_deletion_dependencies
+            missing_schedule, missing_homerooms = class_deletion_dependencies(
+                m['classes'], [dict(grade=g, classNo=c) for g,c in found],
+                m['schedule'], m['ctx'].teachers)
+            E.require(not missing_schedule and not missing_homerooms,
+                '기존 시험일정 또는 담임교사와 연결된 학급은 삭제할 수 없습니다. '+
+                '시험일정: '+', '.join(missing_schedule)+' / 담임학급: '+', '.join(missing_homerooms))
             original=self.repo.tables[SH['classes']];cols=column_map(original[0]);out=copy.deepcopy(original)
             while len(out)<len(values)+1:out.append(['']*len(out[0]))
             for i in range(1,len(out)):
