@@ -5,24 +5,28 @@ import {Button} from './ui';
 
 const steps=[
   {title:'시험일정',target:'시험일정 설정'},
-  {title:'교사·감독 조건',target:'교사 명단'},
-  {title:'자동 배정',target:'자동 배정·직접 수정'},
-  {title:'공정성 검토',target:'공정성 분석'},
-  {title:'저장·출력',target:'배정 기록·인쇄'}
+  {title:'교사 명단·조건',target:'교사 명단'},
+  {title:'수업·겸임 일정',target:'수업시간표'},
+  {title:'자동 배정·직접 수정',target:'자동 배정·직접 수정'},
+  {title:'공정성 분석',target:'공정성 분석'}
 ];
 const conditions=['교사 명단','감독 역할·강사 제외','배정불가 시간','수업시간표','겸임교사 일정','교사감독규칙','최적화 설정'];
 const groups=[
   {title:'준비 현황',items:['시험감독 준비 현황']},
   {title:'조회',items:['교사별 감독 조회','전체 감독 시간표']},
-  {title:'관리자 · 단계별 작업',items:['시험일정 설정',...conditions,'자동 배정·직접 수정','공정성 분석','배정 기록·인쇄']},
+  {title:'1. 시험일정',items:['시험일정 설정']},
+  {title:'2. 교사 명단·조건',items:['교사 명단','감독 역할·강사 제외','배정불가 시간','최적화 설정']},
+  {title:'3. 수업·겸임 일정',items:['수업시간표','겸임교사 일정','교사감독규칙']},
+  {title:'4. 자동 배정·직접 수정',items:['자동 배정·직접 수정']},
+  {title:'5. 공정성 분석·기록',items:['공정성 분석','배정 기록·인쇄']},
   {title:'설정 · 진단',items:['연결·조회 권한','저장 주체·연결 진단']}
 ];
 function stepOf(page:string) {
   if(page==='시험일정 설정')return 0;
-  if(conditions.includes(page))return 1;
-  if(page==='자동 배정·직접 수정')return 2;
-  if(page==='공정성 분석')return 3;
-  if(page==='배정 기록·인쇄')return 4;
+  if(['교사 명단','감독 역할·강사 제외','배정불가 시간','최적화 설정'].includes(page))return 1;
+  if(['수업시간표','겸임교사 일정','교사감독규칙'].includes(page))return 2;
+  if(page==='자동 배정·직접 수정')return 3;
+  if(['공정성 분석','배정 기록·인쇄'].includes(page))return 4;
   return -1;
 }
 export function ExamNavigation({pageNode,meta,navigate,busy,dirty,children}:{pageNode:ViewNode;meta?:ViewNode;navigate:(index:number)=>void;busy:boolean;dirty:boolean;children:ReactNode}){

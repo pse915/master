@@ -19136,17 +19136,17 @@ function Nm({ node: e, send: t, busy: n, values: r }) {
 function Qm({pageNode:e,meta:t,navigate:n,busy:r,dirty:i,children:a}){
  const [o,s]=(0,_.useState)(!1),[d,c]=(0,_.useState)(null);
  const l=(e.options||[]).map(e=>e.label),u=l[Number(e.value)]||l[0]||"";
- const f=["시험일정 설정","교사 명단","자동 배정·직접 수정","공정성 분석","배정 기록·인쇄"];
+ const f=["시험일정 설정","교사 명단","수업시간표","자동 배정·직접 수정","공정성 분석"];
  const g=["교사 명단","감독 역할·강사 제외","배정불가 시간","수업시간표","겸임교사 일정","교사감독규칙","최적화 설정"];
- const step=u==="시험일정 설정"?0:g.includes(u)?1:f.indexOf(u);
- const groups=[["준비 현황",["시험감독 준비 현황"]],["조회",["교사별 감독 조회","전체 감독 시간표"]],["관리자 · 단계별 작업",["시험일정 설정",...g,...f.slice(2)]],["설정 · 진단",["연결·조회 권한","저장 주체·연결 진단"]]];
+ const step=u==="시험일정 설정"?0:["교사 명단","감독 역할·강사 제외","배정불가 시간","최적화 설정"].includes(u)?1:["수업시간표","겸임교사 일정","교사감독규칙"].includes(u)?2:u==="자동 배정·직접 수정"?3:["공정성 분석","배정 기록·인쇄"].includes(u)?4:-1;
+ const groups=[["준비 현황",["시험감독 준비 현황"]],["조회",["교사별 감독 조회","전체 감독 시간표"]],["1. 시험일정",["시험일정 설정"]],["2. 교사 명단·조건",["교사 명단","감독 역할·강사 제외","배정불가 시간","최적화 설정"]],["3. 수업·겸임 일정",["수업시간표","겸임교사 일정","교사감독규칙"]],["4. 자동 배정·직접 수정",["자동 배정·직접 수정"]],["5. 공정성 분석·기록",["공정성 분석","배정 기록·인쇄"]],["설정 · 진단",["연결·조회 권한","저장 주체·연결 진단"]]];
  const move=x=>{let y=l.indexOf(x);if(y<0||y===Number(e.value)||r)return;i?c(y):n(y);s(!1)};
  const link=x=>(0,k.jsx)("button",{className:"exam-nav-link "+(g.includes(x)?"subitem ":"")+(u===x?"active":""),disabled:r,"aria-current":u===x?"page":void 0,onClick:()=>move(x),children:x},x);
  const btn=(label,onClick,disabled)=>(0,k.jsx)("button",{className:"btn btn-outline",disabled,onClick,children:label});
  return (0,k.jsxs)("div",{className:"exam-shell",children:[
  (0,k.jsxs)("aside",{className:"exam-navigation",children:[(0,k.jsxs)("div",{className:"exam-side-head",children:[(0,k.jsx)("strong",{children:"▦ 시험감독 업무"}),btn(o?"메뉴 접기":"메뉴 열기",()=>s(!o),!1)]}),
  (0,k.jsx)("nav",{"aria-label":"시험감독 메뉴",className:"exam-menu "+(o?"is-open":""),children:groups.map(([title,items])=>{let found=items.filter(x=>l.includes(x));return found.length?(0,k.jsxs)("div",{className:"exam-nav-section",children:[(0,k.jsx)("p",{children:title}),found.map(link)]},title):null})})]}),
- (0,k.jsxs)("div",{className:"exam-stage-main",children:[t?.admin&&(0,k.jsx)("div",{className:"exam-progress","aria-label":"시험감독 5단계 작업 순서",children:f.map((v,j)=>(0,k.jsxs)("button",{className:"exam-progress-step "+(step===j?"current":""),disabled:r,"aria-current":step===j?"step":void 0,onClick:()=>move(v),children:[(0,k.jsx)("span",{className:"exam-progress-number",children:j+1}),(0,k.jsxs)("span",{children:[(0,k.jsx)("strong",{children:["시험일정","교사·감독 조건","자동 배정","공정성 검토","저장·출력"][j]}),(0,k.jsx)("small",{children:(step===j?"현재 단계 · ":"")+(t?.steps?.[j]?.state||"확인 필요")})]})]},j))}),
+ (0,k.jsxs)("div",{className:"exam-stage-main",children:[t?.admin&&(0,k.jsx)("div",{className:"exam-progress","aria-label":"시험감독 5단계 작업 순서",children:f.map((v,j)=>(0,k.jsxs)("button",{className:"exam-progress-step "+(step===j?"current":""),disabled:r,"aria-current":step===j?"step":void 0,onClick:()=>move(v),children:[(0,k.jsx)("span",{className:"exam-progress-number",children:j+1}),(0,k.jsxs)("span",{children:[(0,k.jsx)("strong",{children:["시험일정","교사 명단·조건","수업·겸임 일정","자동 배정·직접 수정","공정성 분석"][j]}),(0,k.jsx)("small",{children:(step===j?"현재 단계 · ":"")+(t?.steps?.[j]?.state||"확인 필요")})]})]},j))}),
  t?.overview?.sheet&&(0,k.jsxs)("div",{className:"exam-context",children:[(0,k.jsx)("span",{children:"연결 시트: "+t.overview.sheet}),(0,k.jsx)("span",{children:t.overview.writable?"시험감독 저장 가능":"읽기 전용 · "+t.overview.readOnlyReason})]}),a,
  t?.admin&&step>=0&&(0,k.jsxs)("div",{className:"exam-page-steps",children:[btn("← 이전 단계",()=>move(f[Math.max(0,step-1)]),r||step===0),(0,k.jsx)("span",{children:"저장은 각 단계의 해당 저장 버튼으로 수행하세요."}),btn("다음 단계 →",()=>move(f[Math.min(4,step+1)]),r||step===4)]})]}),
  d!==null&&(0,k.jsx)("div",{className:"exam-confirm-overlay",children:(0,k.jsxs)("section",{className:"exam-confirm",role:"alertdialog","aria-modal":!0,"aria-labelledby":"exam-dirty-title",children:[(0,k.jsx)("h3",{id:"exam-dirty-title",children:"저장하지 않은 변경사항"}),(0,k.jsx)("p",{children:"입력값을 유지하고 이동할 수 있지만 Google Sheets에 저장되는 것은 아닙니다. 다시 돌아와 저장하세요."}),(0,k.jsxs)("div",{className:"exam-confirm-buttons",children:[btn("취소하고 저장 작업 계속",()=>c(null),!1),btn("입력 유지하고 이동",()=>{n(d);c(null)},!1)]})]})})]});
@@ -19362,7 +19362,7 @@ function Pm({ data: e, transport: t, onReady: n }) {
 							}),
 							/* @__PURE__ */ (0, k.jsx)("div", {
 								className: e.loggedIn ? "workspace" : "login-workspace",
-								children: ep ? /* @__PURE__ */ (0,k.jsx)(Qm,{pageNode:ep,meta:em,dirty,busy:r,navigate:i=>void S("control",{control:"exam_page",values:{exam_page:i}}),children:/* @__PURE__ */ (0,k.jsx)("div",{className:"exam-content",children:ee.map(e=>/* @__PURE__ */(0,k.jsx)(Nm,{node:e,send:S,busy:r,values:x},e.id))})}) : ee.map((e) => /* @__PURE__ */ (0, k.jsx)(Nm, {
+								children: ep ? /* @__PURE__ */ (0,k.jsx)(Qm,{pageNode:ep,meta:em,dirty:dirty||Boolean(em?.unsavedForm),busy:r,navigate:i=>void S("control",{control:"exam_page",values:{exam_page:i}}),children:/* @__PURE__ */ (0,k.jsx)("div",{className:"exam-content",children:ee.map(e=>/* @__PURE__ */(0,k.jsx)(Nm,{node:e,send:S,busy:r,values:x},e.id))})}) : ee.map((e) => /* @__PURE__ */ (0, k.jsx)(Nm, {
 									node: e,
 									send: S,
 									busy: r,

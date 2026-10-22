@@ -49,3 +49,14 @@ def test_old_page_alias_and_source_save_ids_remain_recognized():
     app._render()
     assert app.port.session_state['exam_page']=='수업시간표'
     assert _nodes(app)['exam_page']['options'][7]['label']=='수업시간표'
+
+
+def test_exam_navigation_warns_about_staged_unsaved_form_rows():
+    """React meta marks staged server-side form rows as unsaved before navigation."""
+    app,s,b=setup()
+    app.port.session_state.update(active_tab=TAB,exam_page='배정불가 시간')
+    app._render()
+    app.port.session_state['_exam_original_dirty_unavailable']=True
+    app._render()
+    meta=next(v for v in app.port.nodes if v['kind']=='exam_meta')
+    assert meta['unsavedForm'] is True

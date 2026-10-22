@@ -120,11 +120,19 @@ def page_roster(p,s,m,writable):
     screen_header(p,'2. 교사 명단','교사 ID와 동명이인을 구분하세요. 명단 삭제는 연관 조건에도 영향을 줄 수 있습니다.')
     if m['roster']['errors']:p.warning('; '.join(m['roster']['errors']))
     fields=['originalId','id','name','subjectsText','crossSubjectsText','homeroom','MAIN','ASSIST','STUDY']
-    rows=grid(p,'roster',roster_rows(m),fields,{k:p.column_config.SelectboxColumn(v,options=['O','X']) for k,v in E.ROLES.items()})
+    configs={k:p.column_config.SelectboxColumn(v,options=['O','X']) for k,v in E.ROLES.items()}
+    homes=['']+sorted({c['id'] for c in m['classes']} | {t['homeroom'] for t in m['ctx'].teachers if t['homeroom']})
+    configs['homeroom']=p.column_config.SelectboxColumn('담임학급 (비담임은 공란)',options=homes)
+    epoch=p.session_state.get('_exam_roster_epoch',0)
+    rows=grid(p,'roster_'+str(epoch),roster_rows(m),fields,configs,disabled=['originalId'])
     deleted=[t['id'] for t in m['ctx'].teachers if t['id'] not in {E.clean(r.get('originalId')) for r in rows}]
     approve=p.checkbox('삭제 대상과 관련 조건 정리를 확인했습니다',key='exam_roster_delete_ack') if deleted else True
     if deleted:p.warning('삭제 예정 교사: '+', '.join(deleted))
-    if p.button('교사 명단 저장',key='exam_save_roster',disabled=not writable or not approve):run(p,s,'saveRoster',dict(rows=rows,deletedTeacherIds=deleted))
+    if p.button('교사 명단 저장',key='exam_save_roster',disabled=not writable or not approve):
+        run(p,s,'saveRoster',dict(rows=rows,deletedTeacherIds=deleted))
+    if p.button('명단 편집 취소',key='exam_cancel_roster'):
+        p.session_state['_exam_roster_epoch']=epoch+1
+        p.rerun()
     with p.expander('교사 상세 · 연결된 조건 확인'):
         teachers=m['ctx'].teachers
         if teachers:
@@ -134,63 +142,24 @@ def page_roster(p,s,m,writable):
             p.caption('수업·겸임·감독규칙은 왼쪽 하위 메뉴에서 수정합니다. ID를 기준으로 배정불가 일정을 연결합니다.')
             p.info(f"교사: {person['name']} · 담당교과: {', '.join(person['subjects'])} · 담임: {person['homeroom'] or '없음'}")
 
+from .original_forms import (
+    page_roles as original_page_roles,
+    page_unavailable as original_page_unavailable,
+    page_teaching as original_page_teaching,
+    page_settings as original_page_settings,
+)
+
 def page_roles(p,s,m,writable):
-    screen_header(p,'2. 감독 역할·강사 제외','정·부·자습 감독 역할 가능 여부는 교사 명단에서 O/X로 수정합니다.')
-    rows=roster_rows(m)
-    display(p,[dict(교사ID=r['id'],이름=r['name'],정감독=r['MAIN'],부감독=r['ASSIST'],자습감독=r['STUDY'],강사제외='예' if r['id'] in m['ctx'].instructors else '아니오') for r in rows])
-    ids=p.text_input('감독에서 제외할 강사 교사ID (쉼표로 구분)',value=', '.join(m['state']['settings'].get('instructorIds',[])),key='exam_instructors')
-    p.caption('강사 제외는 배정 엔진의 기존 instructorIds 목록으로 저장됩니다.')
-    if p.button('강사 제외 목록 저장',key='exam_save_instructors',disabled=not writable):run(p,s,'saveInstructorFlags',dict(instructorIds=[x.strip() for x in ids.split(',') if x.strip()]))
+    return original_page_roles(p,s,m,writable)
 
 def page_unavailable(p,s,m,writable):
-    screen_header(p,'2. 배정불가 시간','교사 ID·날짜·교시·사유를 입력합니다.')
-    fields=['teacherId','date','period','reason'];rows=grid(p,'unavailable',m['unavailable'],fields)
-    if p.button('배정불가 시간 저장',key='exam_save_unavailable',disabled=not writable):run(p,s,'saveUnavailable',dict(rows=rows))
+    return original_page_unavailable(p,s,m,writable)
 
 def page_teaching(p,s,m,writable,kind):
-    specs={
-        '수업시간표':('교사시간표',['teacherName','weekday','period','subject','classId','subjectGroup'],'saveTeaching','수업시간표 미등록 교사는 최적화 설정의 명시적 조건을 확인하세요.'),
-        '겸임교사 일정':('겸임교사설정',['teacherName','type','date','weekday','period','location','note'],'saveVisiting','타교 출강·본교 방문을 각각 등록합니다. 교시가 비어 있으면 종일로 처리합니다.'),
-        '교사감독규칙':('교사감독규칙',['teacherName','mode','startDate','weekday','period','classId','reason','endDate'],'saveTeachingRules','포함 규칙도 교과·담임·부재·중복 배정 제약을 우회하지 않습니다.')}
-    key,fields,action,helptext=specs[kind]
-    screen_header(p,'2. '+kind,helptext)
-    if kind=='수업시간표':
-        source=m['available']['teaching']['source'];values=[{k:cell(r,i) for i,k in enumerate(fields)} for r in s.repo.tables.get(source,[])[1:] if any(E.clean(x) for x in r)]
-    else:values=m['available']['visiting' if kind=='겸임교사 일정' else 'rules']['rows']
-    for item in m['available'].values():
-        if item.get('errors') or item.get('unknown'):p.warning('; '.join(item.get('errors',[])+item.get('unknown',[])))
-    rows=grid(p,'availability_'+key,values,fields)
-    if p.button(kind+' 저장',key='exam_save_availability',disabled=not writable):run(p,s,action,dict(rows=rows))
-    if p.button('후보·제외 사유 분석',key='exam_report_availability'):s.last=('availabilityReport',s.handle('availabilityReport'))
-    if s.last and s.last[0]=='availabilityReport':
-        report=s.last[1];display(p,report['slots'])
-        with p.expander('상세 원본 진단'):p.text_area('세부 진단',value=json.dumps(report,ensure_ascii=False,indent=2),key='exam_availability_report')
+    return original_page_teaching(p,s,m,writable,kind)
 
 def page_settings(p,s,m,writable):
-    screen_header(p,'2. 감독 인원·최적화 설정','기존 엔진이 허용하는 범위와 하드 제약 우선순위는 변경하지 않습니다.')
-    base=copy.deepcopy(m['state']['settings']);opt=base['optimization']
-    study=p.selectbox('자습감독 인원',[0,1,2],index=base['studyCount'],key='exam_setting_study')
-    maximum=p.text_input('교사별 감독 상한 (0=제한 없음)',value=str(base['maxPerTeacher']),key='exam_setting_max')
-    profile=p.selectbox('최적화 프리셋',['balanced','fairness','consecutive','grade'],format_func=lambda v:{'balanced':'균형','fairness':'공정성','consecutive':'연속 근무 회피','grade':'학년 우대'}[v],index=['balanced','fairness','consecutive','grade'].index(opt['profile']),key='exam_setting_profile')
-    grade=p.slider('학년 우대 (0~100%)',0.0,1.0,float(opt['gradeStrength']),step=.05,key='exam_setting_grade')
-    weights={k:p.slider(label,0.1,10.0,float(opt[k]),step=.1,key='exam_setting_'+k) for k,label in [('mainWeight','정감독 업무강도'),('assistWeight','부감독 업무강도'),('studyWeight','자습감독 업무강도')]}
-    bools={k:p.checkbox(label,value=opt[k],key='exam_setting_'+k) for k,label in [('avoidThree','3연속 근무 회피'),('avoidFour','4연속 근무 회피'),('roleFairness','역할별 균형'),('burdenFairness','업무강도 균형'),('dateBalance','날짜별 균형')]}
-    lunch=p.selectbox('점심 단절 교시 (0=없음)',list(range(11)),index=int(opt['lunchBreakAfter']),key='exam_setting_lunch')
-    fallback=p.checkbox('시간표 미등록 교사의 제한적 투입 사용',value=bool(base.get('missingTimetableFallback',False)),key='exam_setting_fallback')
-    ids=p.text_input('명시적으로 허용할 교사 ID (쉼표 구분)',value=', '.join(base.get('missingFallbackTeacherIds',[])),key='exam_setting_fallback_ids')
-    with p.expander('고급 도구 · 과목 동의어/원본 설정 JSON'):
-        raw=p.text_area('감독 설정 원본 JSON',value=json.dumps(base,ensure_ascii=False,indent=2),key='exam_settings_json')
-        if p.button('원본 JSON 검증 후 저장',key='exam_save_settings_json',disabled=not writable):
-            try:run(p,s,'saveSettings',dict(settings=json.loads(raw)))
-            except ValueError as exc:p.error(str(exc))
-    if p.button('최적화 설정 저장',key='exam_save_settings_form',disabled=not writable):
-        try:
-            updated={**base,'studyCount':study,'maxPerTeacher':E.integer(maximum),'missingTimetableFallback':fallback,
-                     'missingFallbackTeacherIds':[v.strip() for v in ids.split(',') if v.strip()],
-                     'optimization':{**opt,'profile':profile,'gradeStrength':grade,**weights,**bools,'lunchBreakAfter':lunch}}
-            E.optimization(updated,True)
-            run(p,s,'saveSettings',dict(settings=updated))
-        except ValueError as exc:p.error(str(exc))
+    return original_page_settings(p,s,m,writable)
 
 def page_assignment(p,s,m,writable,check):
     screen_header(p,'3. 자동 배정·직접 수정','계산 ≠ 저장. 검증 가능한 계산 결과만 명시적으로 저장할 수 있습니다.')
@@ -326,3 +295,4 @@ def render(p,s):
         elif page==PAGES[11]:page_assignment(p,s,m,writable,check)
         elif page==PAGES[12]:page_fairness(p,s,m)
         elif page==PAGES[13]:page_save(p,s,m,writable,check)
+        meta['unsavedForm']=any(bool(p.session_state.get('_exam_original_dirty_'+k)) for k in ('unavailable','visiting','rules'))
